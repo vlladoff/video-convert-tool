@@ -1,0 +1,40 @@
+openapi: 3.0.0
+info:
+  title: Video Convert Tool API
+  description: API for converting video files
+  version: 0.0.1
+servers:
+  - url: http://0.0.0.0:4824
+paths:
+  /convert_video:
+    post:
+      summary: Convert a video file
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                width:
+                  type: integer
+                height:
+                  type: integer
+                output_ext:
+                  type: string
+                  enum: [mp4, mov, mkv]
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error

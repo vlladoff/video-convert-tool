@@ -1,0 +1,14 @@
+services:
+  video_convert_tool:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    ports:
+      - "4824:4824"
+    env_file:
+      - .env
+    volumes:
+      - data:/Users/vlladoff/personal/other/video_convert_tool/temp/
+
+volumes:
+  data:
