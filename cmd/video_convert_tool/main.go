@@ -2,62 +2,44 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"log/slog"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 	"video_convert_tool/internal/config"
-	"video_convert_tool/internal/router"
+	"video_convert_tool/internal/consumer"
 	"video_convert_tool/internal/slogger"
+	"video_convert_tool/internal/task"
+	workerPool "video_convert_tool/internal/worker-pool"
+)
+
+const (
+	workerCount = 8
 )
 
 func main() {
 	cfg := config.MustLoad()
 	log := slogger.SetupLogger(cfg.Env)
-	rtr := router.InitRouter(log)
 
-	log.Info(
-		"starting video convert tool",
-		slog.String("env", cfg.Env),
-	)
+	log.Info("starting video convert tool", slog.String("env", cfg.Env))
 	log.Debug("debug messages are enabled")
-	log.Info("starting server", slog.String("address", cfg.HTTPServer.Address))
 
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
-	srv := &http.Server{
-		Addr:         cfg.HTTPServer.Address,
-		Handler:      rtr,
-		ReadTimeout:  cfg.HTTPServer.Timeout,
-		WriteTimeout: cfg.HTTPServer.Timeout,
-		IdleTimeout:  cfg.HTTPServer.IdleTimeout,
-	}
-
-	go func() {
-		if err := srv.ListenAndServe(); err != nil {
-			log.Error("failed to start server")
-		}
-	}()
-
-	log.Info("server started")
-
-	<-done
-	log.Info("stopping server")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Error("failed to stop server", slog.Attr{
-			Key:   "error",
-			Value: slog.StringValue(err.Error()),
-		})
+	wp := workerPool.NewWorkerPool(workerCount)
+	wp.StartWorkers()
 
-		return
+	answers := make(chan kafka.Message, wp.Workers)
+	defer close(answers)
+	ch, _ := consumer.NewConsumerHandler(ctx, "asd")
+	go ch.Start(answers)
+
+	for answer := range answers {
+		var task task.ConvertVideoTask
+		json.Unmarshal(answer.Value, &task)
+		wp.AddTask(&task)
 	}
 
-	log.Info("server stopped")
+	defer close(wp.TasksChan)
+	wp.Wg.Wait()
 }
