@@ -2,8 +2,8 @@ package task
 
 import (
 	"fmt"
-	videoConvert "video_convert_tool/internal/lib/video-convert"
-	workerPool "video_convert_tool/internal/worker-pool"
+	videoConvert "github.com/vlladoff/video-convert-tool/internal/lib/video-convert"
+	workerPool "github.com/vlladoff/video-convert-tool/internal/worker-pool"
 )
 
 type ConvertVideoTask struct {

@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
+	"github.com/vlladoff/video-convert-tool/internal/config"
+	"github.com/vlladoff/video-convert-tool/internal/consumer"
+	"github.com/vlladoff/video-convert-tool/internal/slogger"
+	workerPool "github.com/vlladoff/video-convert-tool/internal/worker-pool"
 	"log/slog"
-	"video_convert_tool/internal/config"
-	"video_convert_tool/internal/consumer"
-	"video_convert_tool/internal/slogger"
-	workerPool "video_convert_tool/internal/worker-pool"
 )
 
 func main() {

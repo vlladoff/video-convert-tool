@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/segmentio/kafka-go"
+	"github.com/vlladoff/video-convert-tool/internal/task"
 	"log"
 	"math/rand"
-	"video_convert_tool/internal/task"
 )
 
 const topicName = "vct_task"

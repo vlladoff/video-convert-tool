@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/segmentio/kafka-go"
-	"video_convert_tool/internal/config"
-	"video_convert_tool/internal/task"
+	"github.com/vlladoff/video-convert-tool/internal/config"
+	"github.com/vlladoff/video-convert-tool/internal/task"
 )
 
 const (
