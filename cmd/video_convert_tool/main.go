@@ -2,18 +2,11 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"log/slog"
 	"video_convert_tool/internal/config"
 	"video_convert_tool/internal/consumer"
 	"video_convert_tool/internal/slogger"
-	"video_convert_tool/internal/task"
 	workerPool "video_convert_tool/internal/worker-pool"
-)
-
-const (
-	workerCount = 8
 )
 
 func main() {
@@ -26,20 +19,24 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	wp := workerPool.NewWorkerPool(workerCount)
+	wp, gracefulDownWP := workerPool.NewWorkerPool(cfg.WorkersCount)
+	defer gracefulDownWP()
+	defer wp.Wait()
 	wp.StartWorkers()
 
-	answers := make(chan kafka.Message, wp.Workers)
-	defer close(answers)
-	ch, _ := consumer.NewConsumerHandler(ctx, "asd")
-	go ch.Start(answers)
+	ch, gracefulDownConsumer, _ := consumer.NewConsumer(ctx, cfg, wp.Workers)
+	defer gracefulDownConsumer()
+	go ch.Start(ctx)
 
-	for answer := range answers {
-		var task task.ConvertVideoTask
-		json.Unmarshal(answer.Value, &task)
-		wp.AddTask(&task)
+	//2.1 Ответы в кафку записать, ну шо всё чотко прошло (переписать воркер пул на работу с результатами)
+	//3. Сделать s3 mini это!
+	//4. Рефакторинг
+	//5. ??
+	//6. Перепроверить воркер пул
+
+	for t := range ch.Tasks {
+		wp.AddTask(&t)
 	}
 
-	defer close(wp.TasksChan)
 	wp.Wg.Wait()
 }

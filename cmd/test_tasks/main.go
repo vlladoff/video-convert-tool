@@ -1,56 +1,26 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/segmentio/kafka-go"
+	"log"
 	"math/rand"
+	"video_convert_tool/internal/task"
 )
 
 const topicName = "vct_task"
 
-type Task struct {
-	ID         int    `json:"id"`
-	Path       string `json:"path"`
-	OutputPath string `json:"output_path"`
-	Width      int    `json:"width"`
-	Height     int    `json:"height"`
-	Ext        string `json:"ext"`
-}
-
 func main() {
-	conf := kafka.ConfigMap{
-		"bootstrap.servers": "127.0.0.1",
-		"group.id":          "myGroup",
-		"auto.offset.reset": "earliest",
+	w := &kafka.Writer{
+		Addr:     kafka.TCP("localhost:9092", "localhost:9093", "localhost:9094"),
+		Topic:    topicName,
+		Balancer: &kafka.LeastBytes{},
 	}
-
-	topic := topicName
-	p, err := kafka.NewProducer(&conf)
-
-	if err != nil {
-		fmt.Printf("Failed to create producer: %s", err)
-		return
-	}
-
-	// Go-routine to handle message delivery reports and
-	// possibly other event types (errors, stats, etc)
-	go func() {
-		for e := range p.Events() {
-			switch ev := e.(type) {
-			case *kafka.Message:
-				if ev.TopicPartition.Error != nil {
-					fmt.Printf("Failed to deliver message: %v\n", ev.TopicPartition)
-				} else {
-					fmt.Printf("Produced event to topic %s: key = %-10s value = %s\n",
-						*ev.TopicPartition.Topic, string(ev.Key), string(ev.Value))
-				}
-			}
-		}
-	}()
 
 	for n := 0; n < 10; n++ {
-		task := Task{
+		newTask := task.ConvertVideoTask{
 			ID:         n,
 			Path:       fmt.Sprintf("test.mp4"),
 			OutputPath: fmt.Sprintf("test%d.mp4", n),
@@ -59,19 +29,23 @@ func main() {
 			Ext:        "mp4",
 		}
 
-		taskJSON, err := json.Marshal(task)
+		taskJSON, err := json.Marshal(newTask)
 		if err != nil {
 			fmt.Printf("Failed to marshal JSON: %s\n", err)
 			return
 		}
 
-		p.Produce(&kafka.Message{
-			TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-			Value:          taskJSON,
-		}, nil)
+		err = w.WriteMessages(context.Background(), kafka.Message{
+			Value: taskJSON,
+		})
+
+		if err != nil {
+			log.Fatal("failed to write messages:", err)
+		}
+
 	}
 
-	// Wait for all messages to be delivered
-	p.Flush(15 * 1000)
-	p.Close()
+	if err := w.Close(); err != nil {
+		log.Fatal("failed to close writer:", err)
+	}
 }

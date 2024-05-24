@@ -16,14 +16,21 @@ type ConvertVideoTask struct {
 	Ext        string `json:"ext"`
 }
 
+type ConvertVideoTaskDone struct {
+	workerPool.TaskMeta
+	ID     int  `json:"id"`
+	Status bool `json:"status"`
+}
+
 func (cvt *ConvertVideoTask) Process(id int) {
 	fmt.Printf("Workerk n: %d, task id: %d", id, cvt.Id)
 
+	//ext
 	if cvt.Path != "" && cvt.OutputPath != "" && cvt.Width > 0 && cvt.Height > 0 {
 		err := videoConvert.Convert(cvt.Path, cvt.OutputPath, cvt.Width, cvt.Height)
 		if err != nil {
 			return
 		}
-		//
+		//task done
 	}
 }

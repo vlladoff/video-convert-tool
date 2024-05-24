@@ -18,11 +18,13 @@ type WorkerPool struct {
 	Wg        sync.WaitGroup
 }
 
-func NewWorkerPool(workers int) *WorkerPool {
+func NewWorkerPool(workers int) (*WorkerPool, func()) {
+	taskChan := make(chan Task, workers)
+
 	return &WorkerPool{
 		Workers:   workers,
-		TasksChan: make(chan Task, workers),
-	}
+		TasksChan: taskChan,
+	}, func() { close(taskChan) }
 }
 
 func (wp *WorkerPool) StartWorkers() {
@@ -42,4 +44,8 @@ func (wp *WorkerPool) worker(id int) {
 	for task := range wp.TasksChan {
 		task.Process(id)
 	}
+}
+
+func (wp *WorkerPool) Wait() {
+	wp.Wg.Wait()
 }

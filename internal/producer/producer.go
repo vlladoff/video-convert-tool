@@ -1,58 +1,51 @@
 package producer
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"math/rand"
+	"github.com/segmentio/kafka-go"
+	"video_convert_tool/internal/config"
+	"video_convert_tool/internal/task"
 )
 
-const topicName = "vct_answer"
+const (
+	topicDoneName = "vct_task_done"
+)
 
-func main() {
-	conf := kafka.ConfigMap{
-		"bootstrap.servers": "127.0.0.1",
-		"group.id":          "myGroup",
-		"auto.offset.reset": "earliest",
+type Producer struct {
+	Writer *kafka.Writer
+}
+
+func NewProducer(cfg *config.Config) (*Producer, func()) {
+	writer := &kafka.Writer{
+		Addr:     kafka.TCP(cfg.KafkaAddress),
+		Topic:    topicDoneName,
+		Balancer: &kafka.LeastBytes{},
 	}
 
-	topic := topicName
-	p, err := kafka.NewProducer(&conf)
+	return &Producer{Writer: writer}, func() {
+		err := writer.Close()
+		if err != nil {
+			return
+		}
+	}
+}
+
+func (p *Producer) SendCompletedTask(ctx context.Context, t task.ConvertVideoTaskDone) error {
+	taskJSON, err := json.Marshal(t)
+	if err != nil {
+		fmt.Printf("Failed to marshal JSON: %s\n", err)
+		return err
+	}
+
+	err = p.Writer.WriteMessages(ctx, kafka.Message{
+		Value: taskJSON,
+	})
 
 	if err != nil {
-		fmt.Printf("Failed to create producer: %s", err)
-		return
+		return err
 	}
 
-	// Go-routine to handle message delivery reports and
-	// possibly other event types (errors, stats, etc)
-	go func() {
-		for e := range p.Events() {
-			switch ev := e.(type) {
-			case *kafka.Message:
-				if ev.TopicPartition.Error != nil {
-					fmt.Printf("Failed to deliver message: %v\n", ev.TopicPartition)
-				} else {
-					fmt.Printf("Produced event to topic %s: key = %-10s value = %s\n",
-						*ev.TopicPartition.Topic, string(ev.Key), string(ev.Value))
-				}
-			}
-		}
-	}()
-
-	users := [...]string{"eabara", "jsmith", "sgarcia", "jbernard", "htanaka", "awalther"}
-	items := [...]string{"book", "alarm clock", "t-shirts", "gift card", "batteries"}
-
-	for n := 0; n < 10; n++ {
-		key := users[rand.Intn(len(users))]
-		data := items[rand.Intn(len(items))]
-		p.Produce(&kafka.Message{
-			TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-			Key:            []byte(key),
-			Value:          []byte(data),
-		}, nil)
-	}
-
-	// Wait for all messages to be delivered
-	p.Flush(15 * 1000)
-	p.Close()
+	return nil
 }
