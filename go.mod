@@ -1,4 +1,4 @@
-module video_convert_tool
+module github.com/vlladoff/video-convert-tool
 
 go 1.21.0
 
