@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"github.com/vlladoff/video-convert-tool/internal/config"
-	"github.com/vlladoff/video-convert-tool/internal/consumer"
+	"github.com/vlladoff/video-convert-tool/internal/service"
 	"github.com/vlladoff/video-convert-tool/internal/slogger"
-	workerPool "github.com/vlladoff/video-convert-tool/internal/worker-pool"
+	"github.com/vlladoff/video-convert-tool/internal/storage"
+	"github.com/vlladoff/video-convert-tool/internal/workerpool"
 	"log/slog"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -16,27 +19,21 @@ func main() {
 	log.Info("starting video convert tool", slog.String("env", cfg.Env))
 	log.Debug("debug messages are enabled")
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	wp, gracefulDownWP := workerPool.NewWorkerPool(cfg.WorkersCount)
+	wp, gracefulDownWP := workerpool.NewWorkerPool(cfg.WorkersCount)
 	defer gracefulDownWP()
 	defer wp.Wait()
 	wp.StartWorkers()
 
-	ch, gracefulDownConsumer, _ := consumer.NewConsumer(ctx, cfg, wp.Workers)
-	defer gracefulDownConsumer()
-	go ch.Start(ctx)
-
-	//2.1 Ответы в кафку записать, ну шо всё чотко прошло (переписать воркер пул на работу с результатами)
-	//3. Сделать s3 mini это!
-	//4. Рефакторинг
-	//5. ??
-	//6. Перепроверить воркер пул
-
-	for t := range ch.Tasks {
-		wp.AddTask(&t)
+	minioStorage, err := storage.NewMinIOStorage(*cfg)
+	if err != nil {
+		log.Error("failed to create MinIO storage", slog.String("error", err.Error()))
+		return
 	}
 
-	wp.Wg.Wait()
+	videoService, gracefulDownVS := service.NewVideoService(cfg, wp, minioStorage)
+	defer gracefulDownVS()
+	videoService.StartConsumingTasks(ctx)
 }

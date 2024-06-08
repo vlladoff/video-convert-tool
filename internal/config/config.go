@@ -6,9 +6,10 @@ import (
 )
 
 type Config struct {
-	Env string `env:"VCT_ENV" env-default:"prod"`
+	Env string `env:"VCT_ENV" env-default:"dev"`
 	KafkaServer
 	WorkerPool
+	MinioS3
 }
 
 type KafkaServer struct {
@@ -18,6 +19,14 @@ type KafkaServer struct {
 
 type WorkerPool struct {
 	WorkersCount int `env:"VCT_WORKERS_COUNT" env-default:"8"`
+}
+
+type MinioS3 struct {
+	Endpoint  string `env:"VCT_MINIO_ENDPOINT" env-default:"127.0.0.1:9000"`
+	AccessKey string `env:"VCT_MINIO_ACCESS_KEY" env-default:"minioadmin"`
+	SecretKey string `env:"VCT_MINIO_SECRET_KEY" env-default:"minioadmin"`
+	Bucket    string `env:"VCT_MINIO_BUCKET" env-default:"vct"`
+	UseSSL    bool   `env:"VCT_MINIO_USE_SSL" env-default:"false"`
 }
 
 func MustLoad() *Config {

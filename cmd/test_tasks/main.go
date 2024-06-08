@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/segmentio/kafka-go"
-	"github.com/vlladoff/video-convert-tool/internal/task"
+	"github.com/vlladoff/video-convert-tool/internal/entity"
 	"log"
 	"math/rand"
 )
@@ -19,8 +19,8 @@ func main() {
 		Balancer: &kafka.LeastBytes{},
 	}
 
-	for n := 0; n < 10; n++ {
-		newTask := task.ConvertVideoTask{
+	for n := 0; n < 1; n++ {
+		newTask := entity.ConvertVideoTask{
 			ID:         n,
 			Path:       fmt.Sprintf("test.mp4"),
 			OutputPath: fmt.Sprintf("test%d.mp4", n),
@@ -30,6 +30,7 @@ func main() {
 		}
 
 		taskJSON, err := json.Marshal(newTask)
+		// todo log
 		if err != nil {
 			fmt.Printf("Failed to marshal JSON: %s\n", err)
 			return
@@ -46,6 +47,7 @@ func main() {
 	}
 
 	if err := w.Close(); err != nil {
+		// todo log
 		log.Fatal("failed to close writer:", err)
 	}
 }
