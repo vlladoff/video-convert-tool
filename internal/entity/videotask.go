@@ -6,10 +6,6 @@ import (
 	"os"
 )
 
-type VideoSaver interface {
-	SaveVideo(path, s3Path string) error
-}
-
 type ConvertVideoTask struct {
 	ID         int    `json:"id"`
 	Path       string `json:"path"`
@@ -17,7 +13,6 @@ type ConvertVideoTask struct {
 	Width      int    `json:"width"`
 	Height     int    `json:"height"`
 	Ext        string `json:"ext"`
-	videoSaver VideoSaver
 }
 
 type ConvertVideoTaskDone struct {
@@ -49,11 +44,6 @@ func (cvt *ConvertVideoTask) Process(id int) (bool, int) {
 		if err != nil {
 			// todo log
 			return false, id
-		}
-
-		err = cvt.videoSaver.SaveVideo(tmpFilePath, cvt.OutputPath)
-		if err != nil {
-			return false, 0
 		}
 	}
 
